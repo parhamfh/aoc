@@ -1,0 +1,1 @@
+ghc A.hs -o A.hh
