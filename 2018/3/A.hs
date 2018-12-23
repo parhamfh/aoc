@@ -11,11 +11,25 @@ main = do
     let claim_input = lines handle
     let claims = map (\x -> inputToClaims x) claim_input
     -- print $ last claims
-    print $ largestHeight claims
+    let s =  max (furthestDown claims + largestHeight claims) (furthestRight claims + largestWidth claims)
+    print $ (squareMatrix 5) !! 2 !! 4
     print $ sharedSquares claims
 
 sharedSquares :: [Claim] -> Int
-sharedSquares claims = 2
+sharedSquares claims = commonSquares claims $ squareMatrix $ max (furthestDown claims + largestHeight claims) (furthestRight claims + largestWidth claims)
+
+commonSquares :: [Claim] -> [[Int]] -> Int
+commonSquares claims matrix = 77
+
+-- size of square matrix
+squareMatrix :: Int -> [[Int]]
+squareMatrix size = createMatrix size [[]] [map (* 0) [1..size]]
+
+-- rows, initialized value , columns
+createMatrix :: Int -> [[Int]] -> [[Int]] -> [[Int]]
+createMatrix rows matrix columns
+    | rows > 0      = createMatrix (rows-1) (matrix ++ columns) columns
+    | rows == 0     = tail matrix
 
 furthestDown :: [Claim] -> Int
 furthestDown c = maximum $ map (claimVal 2) c
