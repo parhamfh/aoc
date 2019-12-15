@@ -6,8 +6,7 @@ import Split
 main = do
     handle <- readFile "input.txt"
     let instructions = lines handle
-    let input = 1
-    print $ runDiagnostics (splitComma (head instructions)) [1]
+    print $ runDiagnostics (splitComma (head instructions)) [5]
 
 runDiagnostics :: [Int] -> [Int] -> [Int]
 runDiagnostics instructions input = parseIntcodes instructions input
@@ -18,10 +17,14 @@ parseIntcodes ops input = execute 0 ops input []
 -- see it as params in and then the list manipulated
 execute :: Int -> [Int] -> [Int] -> [Int] -> [Int]
 execute pos codes input output
-    | inst == 1     = traceShow dbg execute next (executeAdd (params !! 0) (params !! 1) (params !! 2) codes) input output
-    | inst == 2     = traceShow dbg execute next (executeMul (params !! 0) (params !! 1) (params !! 2) codes) input output
-    | inst == 3     = traceShow dbg execute next (executeINPUT i (codes !! (params !! 0)) codes) input output 
-    | inst == 4     = traceShow dbg execute next codes input (executeOUTPUT (params !! 0) output)
+    | inst == 1     = traceShow dbg execute next (opAdd (params !! 0) (params !! 1) (params !! 2) codes) input output
+    | inst == 2     = traceShow dbg execute next (opMul (params !! 0) (params !! 1) (params !! 2) codes) input output
+    | inst == 3     = traceShow dbg execute next (opInp i (codes !! (params !! 0)) codes) input output 
+    | inst == 4     = traceShow dbg execute next codes input (opOut (params !! 0) output)
+    | inst == 5     = traceShow dbg execute (opJmpTrue (params !! 0) (params !! 1) next) codes input output
+    | inst == 6     = traceShow dbg execute (opJmpFalse (params !! 0) (params !! 1) next) codes input output
+    | inst == 7     = traceShow dbg execute next (opLt (params !! 0) (params !! 1) (params !! 2) codes) input output
+    | inst == 8     = traceShow dbg execute next (opEq (params !! 0) (params !! 1) (params !! 2) codes) input output
     | inst == 99    = traceShow ("Final code is: ", codes) output
     where
         (inst, modes) = parseInstruction pos codes
@@ -42,6 +45,10 @@ parseIntcode (dig:r)
     | dig == '2'    = (2, modes)
     | dig == '3'    = (3, modes)
     | dig == '4'    = (4, modes)
+    | dig == '5'    = (5, modes)
+    | dig == '6'    = (6, modes)
+    | dig == '7'    = (7, modes)
+    | dig == '8'    = (8, modes)
     | dig == '9'    = (99, [])
     | otherwise     = (-1, [])
     where modes = getModes (tailGuard r)
@@ -60,6 +67,10 @@ getParams inst modes codes pos
     | inst == 2     = ((getInParams 2 modes codes pos) ++ [codes !! (pos+3)], pos+4) 
     | inst == 3     = ([pos+1], pos+2) 
     | inst == 4     = ((getInParams 1 modes codes pos), pos+2)  
+    | inst == 5     = ((getInParams 2 modes codes pos), pos+3)
+    | inst == 6     = ((getInParams 2 modes codes pos), pos+3)
+    | inst == 7     = ((getInParams 2 modes codes pos) ++ [codes !! (pos+3)], pos+4) 
+    | inst == 8     = ((getInParams 2 modes codes pos) ++ [codes !! (pos+3)], pos+4) 
     | inst == 99    = ([],-777)
     | otherwise     = ([],-1)
 
@@ -72,14 +83,24 @@ getInParams n (mode:r) codes pos
 getInParams n [] codes pos = []
 
 --- INSTRUCTIONS
-executeAdd :: Int -> Int -> Int -> [Int] -> [Int]
-executeAdd a b pos list = insertBetween (a+b) (splitAt pos list)
+opAdd :: Int -> Int -> Int -> [Int] -> [Int]
+opAdd a b pos list = insertBetween (a+b) (splitAt pos list)
 
-executeMul :: Int -> Int -> Int -> [Int] -> [Int]
-executeMul a b pos list = insertBetween (a*b) (splitAt pos list)
+opMul :: Int -> Int -> Int -> [Int] -> [Int]
+opMul a b pos list = insertBetween (a*b) (splitAt pos list)
 
-executeINPUT :: Int -> Int -> [Int] -> [Int]
-executeINPUT a pos list = insertBetween a (splitAt pos list)
+opLt :: Int -> Int -> Int -> [Int] -> [Int]
+opLt a b pos list
+    | a < b     = insertBetween 1 (splitAt pos list)
+    | otherwise = insertBetween 0 (splitAt pos list)
+
+opEq :: Int -> Int -> Int -> [Int] -> [Int]
+opEq a b pos list
+    | a == b    = insertBetween 1 (splitAt pos list)
+    | otherwise = insertBetween 0 (splitAt pos list)
+    
+opInp :: Int -> Int -> [Int] -> [Int]
+opInp a pos list = insertBetween a (splitAt pos list)
 
 insertBetween :: Int -> ([Int], [Int])  -> [Int]
 insertBetween val (a, b) = a ++ [val] ++ tailGuard b
@@ -89,6 +110,17 @@ tailGuard b
     | null b    = []
     | otherwise = tail b
 
-executeOUTPUT :: Int -> [Int] -> [Int]
-executeOUTPUT a list = traceShow ("Output: ", a) output
+opOut :: Int -> [Int] -> [Int]
+opOut a list = traceShow ("Output: ", a) output
     where output = list ++ [a]
+
+opJmpTrue :: Int -> Int -> Int -> Int
+opJmpTrue val addr ip_next
+    | val > 0 || val < 0    = addr
+    | otherwise             = ip_next
+
+opJmpFalse :: Int -> Int -> Int -> Int
+opJmpFalse val addr ip_next
+    | val == 0  = addr
+    | otherwise = ip_next
+
