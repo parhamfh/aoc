@@ -2,3 +2,6 @@
 *.o
 *.hi
 *.hh
+A
+B
+.DS_Store
